@@ -89,15 +89,22 @@
     $("go").innerText = "计算中…";
 
     try {
-      const res = await fetch(WEB_APP_URL, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({name,email,grade,saved,intent})
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Unknown error");
+      const payload = new URLSearchParams({
+  name,
+  email,
+  grade,
+  saved: String(saved),
+  intent
+});
 
-      const c = data.calc;
+await fetch(WEB_APP_URL, {
+  method: "POST",
+  mode: "no-cors",
+  body: payload
+});
+
+// IMPORTANT: don’t do res.json() in no-cors mode.
+      
       const out = $("out");
       out.style.display = "block";
       out.innerHTML =
