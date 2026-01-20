@@ -1,0 +1,123 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>College Estimate</title>
+<style>
+  body{font-family:system-ui;margin:16px;max-width:760px}
+  .card{border:1px solid #ddd;border-radius:16px;padding:14px}
+  label{display:block;margin:10px 0 4px;font-weight:650}
+  input,select,button{width:100%;padding:10px;border:1px solid #ccc;border-radius:12px;font-size:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .out{margin-top:12px;padding:12px;border-radius:14px;background:#f6f6f6;display:none}
+  .small{color:#555;font-size:13px;margin-top:10px}
+</style>
+
+<h2>大学教育金估算（当场出结果 + 邮件存档）</h2>
+
+<div class="card">
+  <div class="grid">
+    <div>
+      <label>家长姓名</label>
+      <input id="name" placeholder="Parent Name">
+    </div>
+    <div>
+      <label>邮箱（结果会发到这里）</label>
+      <input id="email" type="email" placeholder="Email">
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <label>孩子年级</label>
+      <select id="grade">
+        <option value="">请选择</option>
+        <option>K</option>
+        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+        <option>6</option><option>7</option><option>8</option>
+        <option>9</option><option>10</option><option>11</option><option>12</option>
+      </select>
+    </div>
+    <div>
+      <label>已为大学存了多少钱（可填0）</label>
+      <input id="saved" inputmode="decimal" placeholder="e.g. 0">
+    </div>
+  </div>
+
+  <label>是否愿意预约15分钟咨询（教育金 + Financial Aid 评估）？</label>
+  <select id="intent">
+    <option value="">请选择</option>
+    <option>Yes / 愿意</option>
+    <option>No / 暂时不需要</option>
+  </select>
+
+  <button id="go" style="margin-top:12px">立刻计算（并邮件存档）</button>
+
+  <div id="out" class="out"></div>
+
+  <div class="small">
+    假设：4年总费用按 <b>5%</b>/年增长；每月存款为保守预算（不计投资回报）。<br>
+    你也可以进一步评估是否可能申请到 <b>financial aid</b>（需结合收入/资产/学校清单等）。
+  </div>
+</div>
+
+<script>
+  // ✅ 改成你部署的 Apps Script Web App URL
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxHjIDzN_bpki5suZ_5F0Kf9qeUmTqk_1GXLrAw_XVI6FLmAVxoOeELZ494y3_MAZFQ/exec";
+
+  const $ = id => document.getElementById(id);
+  const okmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s||"").trim());
+  const num = s => {
+    s = (s||"").toString().trim().replace(/,/g,"");
+    const n = Number(s);
+    return isFinite(n) ? n : 0;
+  };
+  const fmt = n => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+
+  $("go").onclick = async () => {
+    const name = $("name").value.trim();
+    const email = $("email").value.trim();
+    const grade = $("grade").value.trim();
+    const saved = Math.max(0, num($("saved").value));
+    const intent = $("intent").value.trim();
+
+    if (!name) return alert("请输入家长姓名");
+    if (!okmail(email)) return alert("请输入有效邮箱");
+    if (!grade) return alert("请选择孩子年级");
+    if (!intent) return alert("请选择是否愿意预约咨询");
+
+    $("go").disabled = true;
+    $("go").innerText = "计算中…";
+
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({name,email,grade,saved,intent})
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Unknown error");
+
+      const c = data.calc;
+      const out = $("out");
+      out.style.display = "block";
+      out.innerHTML =
+        `<b>结果已生成：</b>（同时已发送到你的邮箱存档）<br><br>
+         距离入学：<b>${c.years}</b> 年（${c.months} 个月）<br><br>
+         <b>入学时4年总费用估算（5%年增长）：</b><br>
+         • 公立州内：<b>$${fmt(c.futurePublic)}</b><br>
+         • 私立：<b>$${fmt(c.futurePrivate)}</b><br><br>
+         <b>扣除已存 $${fmt(saved)} 后仍需准备：</b><br>
+         • 公立：<b>$${fmt(c.gapPublic)}</b><br>
+         • 私立：<b>$${fmt(c.gapPrivate)}</b><br><br>
+         <b>建议每月需要存（保守、不计投资回报）：</b><br>
+         • 公立：<b>$${fmt(c.perMonthPublic)}/月</b><br>
+         • 私立：<b>$${fmt(c.perMonthPrivate)}/月</b><br><br>
+         <span style="color:#555">如选择“愿意咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
+    } catch (err) {
+      alert("失败：" + err.message);
+    } finally {
+      $("go").disabled = false;
+      $("go").innerText = "立刻计算（并邮件存档）";
+    }
+  };
+</script>
