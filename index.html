@@ -61,8 +61,8 @@
 </div>
 
 <script>
-  // ✅ 改成你部署的 Apps Script Web App URL
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzn4Hx7AnjnapbB8hEVNSxBZzIUbB2dexQ9Lm3uB0qNsHq6uTH8iXFc4e66Lad9IDaa/exec";
+  // ✅ Your deployed Apps Script Web App URL (/exec)
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-fwfRPfI3jjyyBuviT0-1Mo0HtAHBgntTvJOn9NZaBojiyhM-soIg_g_sFZPLxaFF/exec";
 
   const $ = id => document.getElementById(id);
   const okmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s||"").trim());
@@ -73,14 +73,14 @@
   };
   const fmt = n => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
 
-  // ✅ 前端计算：避免依赖后端返回（no-cors 不能 res.json）
+  // ✅ Front-end calculation (so results always show)
   function calcCollege(grade, saved) {
     const growth = 0.05;          // 5% inflation
-    const publicToday = 120000;   // 你可按需调整：当前4年公立总成本假设
-    const privateToday = 320000;  // 你可按需调整：当前4年私立总成本假设
+    const publicToday = 120000;   // assumption: today's 4-year public total cost
+    const privateToday = 320000;  // assumption: today's 4-year private total cost
 
     const g = (grade === "K") ? 0 : Number(grade);
-    const years = Math.max(0, 18 - (5 + g)); // 粗略：K≈5岁，18岁上大学
+    const years = Math.max(0, 18 - (5 + g)); // rough mapping: K≈5 years old, college≈18
     const months = years * 12;
 
     const futurePublic  = Math.round(publicToday  * Math.pow(1 + growth, years));
@@ -95,7 +95,7 @@
     return { years, months, futurePublic, futurePrivate, gapPublic, gapPrivate, perMonthPublic, perMonthPrivate };
   }
 
-  $("go").onclick = async () => {
+  $("go").addEventListener("click", async () => {
     const name = $("name").value.trim();
     const email = $("email").value.trim();
     const grade = $("grade").value.trim();
@@ -110,9 +110,10 @@
     $("go").disabled = true;
     $("go").innerText = "计算中…";
 
-    // ✅ 先在前端计算并展示（即使网络提交失败，也能出结果）
+    // ✅ compute first
     const c = calcCollege(grade, saved);
 
+    // ✅ show results immediately
     const out = $("out");
     out.style.display = "block";
     out.innerHTML =
@@ -130,7 +131,8 @@
        <span style="color:#555">如选择“愿意咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
 
     try {
-      // ✅ 用 URLSearchParams + no-cors 避免 CORS/预检问题
+      // ✅ Send as real "application/x-www-form-urlencoded" body
+      // This helps Apps Script reliably parse parameters.
       const payload = new URLSearchParams({
         name,
         email,
@@ -138,7 +140,6 @@
         saved: String(saved),
         intent,
 
-        // 把结果也传给后端，方便你发邮件/记录
         years: String(c.years),
         months: String(c.months),
         futurePublic: String(c.futurePublic),
@@ -154,16 +155,16 @@
       await fetch(WEB_APP_URL, {
         method: "POST",
         mode: "no-cors",
-        body: payload
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload.toString()
       });
 
-      // IMPORTANT: no-cors 模式不能读取响应内容；不要 res.json()
+      // IMPORTANT: no-cors cannot read response; do not res.json()
     } catch (err) {
-      // no-cors 下浏览器可能不暴露详细原因，这里仅提示“提交可能失败”
       alert("结果已生成，但提交邮件存档可能失败（网络限制）： " + err.message);
     } finally {
       $("go").disabled = false;
       $("go").innerText = "立刻计算（并邮件存档）";
     }
-  };
+  });
 </script>
