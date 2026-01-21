@@ -73,6 +73,28 @@
   };
   const fmt = n => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
 
+  // ✅ 前端计算：避免依赖后端返回（no-cors 不能 res.json）
+  function calcCollege(grade, saved) {
+    const growth = 0.05;          // 5% inflation
+    const publicToday = 120000;   // 你可按需调整：当前4年公立总成本假设
+    const privateToday = 320000;  // 你可按需调整：当前4年私立总成本假设
+
+    const g = (grade === "K") ? 0 : Number(grade);
+    const years = Math.max(0, 18 - (5 + g)); // 粗略：K≈5岁，18岁上大学
+    const months = years * 12;
+
+    const futurePublic  = Math.round(publicToday  * Math.pow(1 + growth, years));
+    const futurePrivate = Math.round(privateToday * Math.pow(1 + growth, years));
+
+    const gapPublic  = Math.max(0, futurePublic  - saved);
+    const gapPrivate = Math.max(0, futurePrivate - saved);
+
+    const perMonthPublic  = months > 0 ? Math.ceil(gapPublic  / months) : gapPublic;
+    const perMonthPrivate = months > 0 ? Math.ceil(gapPrivate / months) : gapPrivate;
+
+    return { years, months, futurePublic, futurePrivate, gapPublic, gapPrivate, perMonthPublic, perMonthPrivate };
+  }
+
   $("go").onclick = async () => {
     const name = $("name").value.trim();
     const email = $("email").value.trim();
@@ -88,40 +110,57 @@
     $("go").disabled = true;
     $("go").innerText = "计算中…";
 
+    // ✅ 先在前端计算并展示（即使网络提交失败，也能出结果）
+    const c = calcCollege(grade, saved);
+
+    const out = $("out");
+    out.style.display = "block";
+    out.innerHTML =
+      `<b>结果已生成：</b>（并已尝试提交用于邮件存档）<br><br>
+       距离入学：<b>${c.years}</b> 年（${c.months} 个月）<br><br>
+       <b>入学时4年总费用估算（5%年增长）：</b><br>
+       • 公立州内：<b>$${fmt(c.futurePublic)}</b><br>
+       • 私立：<b>$${fmt(c.futurePrivate)}</b><br><br>
+       <b>扣除已存 $${fmt(saved)} 后仍需准备：</b><br>
+       • 公立：<b>$${fmt(c.gapPublic)}</b><br>
+       • 私立：<b>$${fmt(c.gapPrivate)}</b><br><br>
+       <b>建议每月需要存（保守、不计投资回报）：</b><br>
+       • 公立：<b>$${fmt(c.perMonthPublic)}/月</b><br>
+       • 私立：<b>$${fmt(c.perMonthPrivate)}/月</b><br><br>
+       <span style="color:#555">如选择“愿意咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
+
     try {
+      // ✅ 用 URLSearchParams + no-cors 避免 CORS/预检问题
       const payload = new URLSearchParams({
-  name,
-  email,
-  grade,
-  saved: String(saved),
-  intent
-});
+        name,
+        email,
+        grade,
+        saved: String(saved),
+        intent,
 
-await fetch(WEB_APP_URL, {
-  method: "POST",
-  mode: "no-cors",
-  body: payload
-});
+        // 把结果也传给后端，方便你发邮件/记录
+        years: String(c.years),
+        months: String(c.months),
+        futurePublic: String(c.futurePublic),
+        futurePrivate: String(c.futurePrivate),
+        gapPublic: String(c.gapPublic),
+        gapPrivate: String(c.gapPrivate),
+        perMonthPublic: String(c.perMonthPublic),
+        perMonthPrivate: String(c.perMonthPrivate),
 
-// IMPORTANT: don’t do res.json() in no-cors mode.
-      
-      const out = $("out");
-      out.style.display = "block";
-      out.innerHTML =
-        `<b>结果已生成：</b>（同时已发送到你的邮箱存档）<br><br>
-         距离入学：<b>${c.years}</b> 年（${c.months} 个月）<br><br>
-         <b>入学时4年总费用估算（5%年增长）：</b><br>
-         • 公立州内：<b>$${fmt(c.futurePublic)}</b><br>
-         • 私立：<b>$${fmt(c.futurePrivate)}</b><br><br>
-         <b>扣除已存 $${fmt(saved)} 后仍需准备：</b><br>
-         • 公立：<b>$${fmt(c.gapPublic)}</b><br>
-         • 私立：<b>$${fmt(c.gapPrivate)}</b><br><br>
-         <b>建议每月需要存（保守、不计投资回报）：</b><br>
-         • 公立：<b>$${fmt(c.perMonthPublic)}/月</b><br>
-         • 私立：<b>$${fmt(c.perMonthPrivate)}/月</b><br><br>
-         <span style="color:#555">如选择“愿意咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
+        source: location.href
+      });
+
+      await fetch(WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: payload
+      });
+
+      // IMPORTANT: no-cors 模式不能读取响应内容；不要 res.json()
     } catch (err) {
-      alert("失败：" + err.message);
+      // no-cors 下浏览器可能不暴露详细原因，这里仅提示“提交可能失败”
+      alert("结果已生成，但提交邮件存档可能失败（网络限制）： " + err.message);
     } finally {
       $("go").disabled = false;
       $("go").innerText = "立刻计算（并邮件存档）";
