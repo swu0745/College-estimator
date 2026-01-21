@@ -12,23 +12,23 @@
   .small{color:#555;font-size:13px;margin-top:10px}
 </style>
 
-<h2>大学教育金估算</h2>
+<h2>3秒大学金估算  3-Second College Math</h2>
 
 <div class="card">
   <div class="grid">
     <div>
-      <label>家长姓名</label>
+      <label>家长姓名Parent Name</label>
       <input id="name" placeholder="Parent Name">
     </div>
     <div>
-      <label>邮箱</label>
+      <label>邮箱Email</label>
       <input id="email" type="email" placeholder="Email">
     </div>
   </div>
 
   <div class="grid">
     <div>
-      <label>孩子年级</label>
+      <label>孩子年级Kid Grade</label>
       <select id="grade">
         <option value="">请选择</option>
         <option>K</option>
@@ -43,20 +43,20 @@
     </div>
   </div>
 
-  <label>是否愿意预约15分钟咨询（教育金 + Financial Aid 评估）？</label>
+  <label>是否需要预约15分钟咨询（教育金 + Financial Aid 评估）？Willing to have 15 minutes free consultation (Education saving + Financial Aid estimation)?</label>
   <select id="intent">
     <option value="">请选择</option>
-    <option>Yes / 愿意</option>
+    <option>Yes / 需要</option>
     <option>No / 暂时不需要</option>
   </select>
 
-  <button id="go" style="margin-top:12px">立刻计算（并邮件存档）</button>
+  <button id="go" style="margin-top:12px">立刻计算</button>
 
   <div id="out" class="out"></div>
 
   <div class="small">
     假设：4年总费用按 <b>5%</b>/年增长；每月存款为保守预算（不计投资回报）。<br>
-    你也可以进一步评估是否可能申请到 <b>financial aid</b>（需结合收入/资产/学校清单等）。
+    你也可以进一步预约咨询评估是否可能申请到 <b>financial aid</b>（需结合收入/资产/学校清单等）。
   </div>
 </div>
 
@@ -128,7 +128,7 @@
        <b>建议每月需要存（保守、不计投资回报）：</b><br>
        • 公立：<b>$${fmt(c.perMonthPublic)}/月</b><br>
        • 私立：<b>$${fmt(c.perMonthPrivate)}/月</b><br><br>
-       <span style="color:#555">如选择“愿意咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
+       <span style="color:#555">如选择“需要咨询”，我会主动联系你安排15分钟沟通，并可评估 financial aid 可能性。</span>`;
 
     try {
       // ✅ Send as real "application/x-www-form-urlencoded" body
@@ -164,7 +164,7 @@
       alert("结果已生成，但提交邮件存档可能失败（网络限制）： " + err.message);
     } finally {
       $("go").disabled = false;
-      $("go").innerText = "立刻计算（并邮件存档）";
+      $("go").innerText = "立刻计算";
     }
   });
 </script>
